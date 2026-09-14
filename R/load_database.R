@@ -37,6 +37,10 @@ load_database <- function(record_id,
 
     if (!is.null(version)) {
         version <- strip_version_prefix(version)
+
+        if (is.na(version) || !nzchar(version)) {
+            stop("Requested version or DOI is not available.", call. = FALSE)
+        }
     }
 
     dir.create(path, recursive = TRUE, showWarnings = FALSE)
@@ -52,7 +56,7 @@ load_database <- function(record_id,
         version <- metadata$version[metadata$doi == doi][[1]]
     }
 
-    if (!version %in% metadata$version) {
+    if (is.na(version) || !version %in% metadata$version) {
         stop("Requested version or DOI is not available.", call. = FALSE)
     }
 
@@ -119,7 +123,13 @@ load_database <- function(record_id,
 
     message("Loading data from '", filename, "'")
     data <- readRDS(filename)
-    class(data) <- unique(c("traits.build", class(data)))
+    existing_class <- class(data)
+
+    if (is.null(existing_class)) {
+        existing_class <- character()
+    }
+
+    class(data) <- unique(c("traits.build", existing_class))
 
     data
 }
@@ -252,7 +262,11 @@ create_metadata <- function(res, include_index = FALSE) {
         raw_version = metadata$version,
         index = which(valid_version)
     )
-    order_index <- order_version_rows(version_data$publication_date, version_rank)
+    order_index <- order_version_rows(
+        version_data$publication_date,
+        version_rank,
+        version_data$id
+    )
     version_data <- version_data[order_index, ]
 
     if (!include_index) {
@@ -283,12 +297,12 @@ normalize_record_ids <- function(id, doi, valid_version) {
     as.character(id)[valid_version]
 }
 
-order_version_rows <- function(publication_date, version_rank) {
+order_version_rows <- function(publication_date, version_rank, id) {
     known_dates <- sort(unique(publication_date[!is.na(publication_date)]),
                         decreasing = TRUE)
     ordered <- unlist(lapply(known_dates, function(date) {
         index <- which(!is.na(publication_date) & publication_date == date)
-        index[order(version_rank[index], decreasing = TRUE)]
+        index[order(-xtfrm(version_rank[index]), -xtfrm(id[index]))]
     }), use.names = FALSE)
 
     missing_dates <- which(is.na(publication_date))
@@ -296,7 +310,9 @@ order_version_rows <- function(publication_date, version_rank) {
     if (length(missing_dates)) {
         ordered <- c(
             ordered,
-            missing_dates[order(version_rank[missing_dates], decreasing = TRUE)]
+            missing_dates[
+                order(-xtfrm(version_rank[missing_dates]), -xtfrm(id[missing_dates]))
+            ]
         )
     }
 
@@ -339,7 +355,7 @@ download_database <- function(url, filename) {
 }
 
 strip_version_prefix <- function(version) {
-    sub("^[vV]", "", version)
+    sub("^[vV]", "", trimws(version))
 }
 
 validate_record_id <- function(record_id) {
