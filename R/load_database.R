@@ -33,6 +33,8 @@ load_database <- function(record_id,
         )
     }
 
+    version_input <- version
+
     if (!is.null(version)) {
         version <- strip_version_prefix(version)
     }
@@ -57,7 +59,11 @@ load_database <- function(record_id,
     if (!is.null(doi)) {
         selected_record <- metadata[metadata$doi == doi, , drop = FALSE]
     } else {
-        selected_record <- metadata[metadata$version == version, , drop = FALSE]
+        selected_record <- metadata[metadata$raw_version == version_input, , drop = FALSE]
+
+        if (!nrow(selected_record)) {
+            selected_record <- metadata[metadata$version == version, , drop = FALSE]
+        }
     }
 
     selected_record <- selected_record[1, , drop = FALSE]
@@ -165,20 +171,24 @@ load_json <- function(record_id, path, update) {
 create_metadata <- function(res, include_index = FALSE) {
     metadata <- res$hits$hits$metadata
     publication_date <- as.Date(metadata$publication_date)
-    version <- as.character(
-        numeric_version(strip_version_prefix(metadata$version))
-    )
-    id <- sub("^10\\.5281/zenodo\\.", "", metadata$doi)
+    version_rank <- numeric_version(strip_version_prefix(metadata$version))
+    version <- as.character(version_rank)
+    id <- res$hits$hits$id
+
+    if (is.null(id)) {
+        id <- sub("^10\\.5281/zenodo\\.", "", metadata$doi)
+    }
 
     version_data <- tibble::tibble(
         publication_date = publication_date,
         doi = metadata$doi,
         version = version,
-        id = id,
+        id = as.character(id),
+        raw_version = metadata$version,
         index = seq_along(metadata$doi)
     )
     version_data <- version_data[
-        order(version_data$publication_date, decreasing = TRUE),
+        order(version_data$publication_date, version_rank, decreasing = TRUE),
     ]
 
     if (!include_index) {

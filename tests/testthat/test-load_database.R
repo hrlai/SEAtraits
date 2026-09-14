@@ -57,6 +57,37 @@ test_that("create_metadata standardizes metadata fields", {
     expect_identical(metadata$id, c("200", "100"))
 })
 
+test_that("get_version_latest breaks publication-date ties by version", {
+    path <- tempfile("versions-")
+    dir.create(path)
+
+    write_versions_cache(
+        path = path,
+        record_id = "1234567",
+        records = list(
+            list(
+                publication_date = "2024-02-01",
+                doi = "10.5281/zenodo.100",
+                version = "1.0.0",
+                key = "traits-build-1.0.0.rds",
+                self = "https://example.org/traits-build-1.0.0.rds"
+            ),
+            list(
+                publication_date = "2024-02-01",
+                doi = "10.5281/zenodo.200",
+                version = "1.1.0",
+                key = "traits-build-1.1.0.rds",
+                self = "https://example.org/traits-build-1.1.0.rds"
+            )
+        )
+    )
+
+    expect_identical(
+        get_version_latest(record_id = "1234567", path = path, update = FALSE),
+        "1.1.0"
+    )
+})
+
 test_that("get_version_latest returns the newest normalized version", {
     path <- tempfile("versions-")
     dir.create(path)
