@@ -15,9 +15,9 @@ pak::pak("hrlai/SEAtraits")
 ```r
 library(SEAtraits)
 
-versions <- get_versions(record_id = "1234567")
-latest <- get_version_latest(record_id = "1234567")
-database <- load_database(record_id = "1234567", version = latest)
+versions <- get_versions(record_id = "16249456")
+latest <- get_version_latest(record_id = "16249456")
+database <- load_database(record_id = "16249456", version = latest)
 ```
 
 The package caches the Zenodo versions JSON under `file.path("data",
