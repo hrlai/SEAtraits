@@ -223,6 +223,8 @@ test_that("download_database copies into place when rename fails", {
     filename <- file.path(path, "traits-build.rds")
     copied_to <- NULL
     base_file_copy <- base::file.copy
+    tmp_base <- file.path(path, "staged-download")
+    tmp_file <- paste0(tmp_base, ".download")
 
     testthat::local_mocked_bindings(
         download.file = function(url, destfile, method, quiet, mode, cacheOK) {
@@ -232,6 +234,9 @@ test_that("download_database copies into place when rename fails", {
         .package = "utils"
     )
     testthat::local_mocked_bindings(
+        tempfile = function(...) {
+            tmp_base
+        },
         file.rename = function(from, to) {
             FALSE
         },
@@ -246,6 +251,7 @@ test_that("download_database copies into place when rename fails", {
 
     expect_identical(copied_to, filename)
     expect_true(file.exists(filename))
+    expect_false(file.exists(tmp_file))
 })
 
 test_that("download_database cleans up temporary files on download errors", {

@@ -187,8 +187,9 @@ create_metadata <- function(res, include_index = FALSE) {
         raw_version = metadata$version,
         index = seq_along(metadata$doi)
     )
+    version_data <- version_data[order(version_rank, decreasing = TRUE), ]
     version_data <- version_data[
-        order(version_data$publication_date, version_rank, decreasing = TRUE),
+        order(version_data$publication_date, decreasing = TRUE, method = "radix"),
     ]
 
     if (!include_index) {
