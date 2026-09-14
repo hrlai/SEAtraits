@@ -59,7 +59,7 @@ test_that("load_database errors for an unavailable version", {
             list(
                 publication_date = "2024-02-01",
                 doi = "10.5281/zenodo.200",
-                version = "V1.0.0",
+                version = "1.0.0",
                 key = "traits-build-1.0.0.rds",
                 self = "https://example.org/traits-build-1.0.0.rds"
             )

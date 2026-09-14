@@ -33,6 +33,8 @@ load_database <- function(record_id,
         )
     }
 
+    version_input <- version
+
     if (!is.null(version)) {
         version <- strip_version_prefix(version)
     }
@@ -58,6 +60,24 @@ load_database <- function(record_id,
         selected_record <- metadata[metadata$doi == doi, , drop = FALSE]
     } else {
         selected_record <- metadata[metadata$version == version, , drop = FALSE]
+
+        if (nrow(selected_record) > 1L) {
+            raw_match <- selected_record[
+                selected_record$raw_version == version_input,
+                ,
+                drop = FALSE
+            ]
+
+            if (nrow(raw_match) == 1L) {
+                selected_record <- raw_match
+            } else {
+                stop(
+                    "Multiple records matched the requested version. ",
+                    "Please supply a DOI.",
+                    call. = FALSE
+                )
+            }
+        }
     }
 
     selected_record <- selected_record[1, , drop = FALSE]
