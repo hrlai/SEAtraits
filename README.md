@@ -6,8 +6,8 @@ with `traits.build`.
 ## Installation
 
 ```r
-# install.packages("remotes") # installation helper only
-remotes::install_github("hrlai/SEAtraits")
+# install.packages("pak")
+pak::pak("hrlai/SEAtraits")
 ```
 
 ## Usage
