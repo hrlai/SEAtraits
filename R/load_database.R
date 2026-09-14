@@ -161,7 +161,9 @@ load_json <- function(record_id, path, update) {
         jsonlite::write_json(res, tmp_json, auto_unbox = TRUE)
 
         if (!file.rename(tmp_json, file_json)) {
-            file.copy(tmp_json, file_json, overwrite = TRUE)
+            if (!file.copy(tmp_json, file_json, overwrite = TRUE)) {
+                stop("Could not update cached record metadata.", call. = FALSE)
+            }
         }
 
         return(res)
@@ -185,10 +187,7 @@ create_metadata <- function(res, include_index = FALSE) {
         raw_version = metadata$version,
         index = seq_along(metadata$doi)
     )
-    order_index <- order(
-        -as.numeric(version_data$publication_date),
-        -xtfrm(version_rank)
-    )
+    order_index <- order_version_rows(version_data$publication_date, version_rank)
     version_data <- version_data[order_index, ]
 
     if (!include_index) {
@@ -217,6 +216,15 @@ normalize_record_ids <- function(id, doi) {
     }
 
     as.character(id)
+}
+
+order_version_rows <- function(publication_date, version_rank) {
+    ordered_dates <- sort(unique(publication_date), decreasing = TRUE)
+
+    unlist(lapply(ordered_dates, function(date) {
+        index <- which(publication_date == date)
+        index[order(version_rank[index], decreasing = TRUE)]
+    }), use.names = FALSE)
 }
 
 download_database <- function(url, filename) {
@@ -253,7 +261,7 @@ download_database <- function(url, filename) {
 }
 
 strip_version_prefix <- function(version) {
-    sub("^v", "", version)
+    sub("^[vV]", "", version)
 }
 
 validate_record_id <- function(record_id) {
