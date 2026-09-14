@@ -1,0 +1,28 @@
+Package: SEAtraits
+Title: An R interface to the trait database of South East Asian flora
+Version: 0.0.0.9000
+Author: Hao Ran Lai [aut, cre]
+Maintainer: Hao Ran Lai <hrlai.ecology@gmail.com>
+Authors@R: person(given = "Hao Ran", family = "Lai",
+    email = "hrlai.ecology@gmail.com",
+    role = c("aut", "cre"))
+Description: SEAtraits is an R interface to multiple trait databases in the
+    South East Asia region. It is currently a minimal API based on the
+    austraits package.
+License: MIT + file LICENSE
+URL: https://github.com/hrlai/SEAtraits
+BugReports: https://github.com/hrlai/SEAtraits/issues
+Depends:
+    R (>= 4.0.0)
+Imports:
+    jsonlite,
+    tibble
+Suggests:
+    testthat (>= 3.0.0),
+    austraits (>= 3.1.0)
+Remotes: 
+    traitecoevo/austraits
+Config/testthat/edition: 3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.1.0
