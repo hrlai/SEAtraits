@@ -33,6 +33,8 @@ load_database <- function(record_id,
         )
     }
 
+    version_input <- version
+
     if (!is.null(version)) {
         version <- strip_version_prefix(version)
     }
@@ -57,7 +59,11 @@ load_database <- function(record_id,
     if (!is.null(doi)) {
         selected_record <- metadata[metadata$doi == doi, , drop = FALSE]
     } else {
-        selected_record <- metadata[metadata$version == version, , drop = FALSE]
+        selected_record <- metadata[metadata$raw_version == version_input, , drop = FALSE]
+
+        if (!nrow(selected_record)) {
+            selected_record <- metadata[metadata$version == version, , drop = FALSE]
+        }
     }
 
     selected_record <- selected_record[1, , drop = FALSE]
@@ -174,10 +180,30 @@ load_json <- function(record_id, path, update) {
 
 create_metadata <- function(res, include_index = FALSE) {
     metadata <- normalize_metadata(res$hits$hits$metadata)
+    valid_version <- !is.na(metadata$version) & nzchar(metadata$version)
+    metadata <- metadata[valid_version, , drop = FALSE]
+    id <- normalize_record_ids(res$hits$hits$id, metadata$doi, valid_version)
+
+    if (!nrow(metadata)) {
+        version_data <- tibble::tibble(
+            publication_date = as.Date(character()),
+            doi = character(),
+            version = character(),
+            id = character(),
+            raw_version = character(),
+            index = integer()
+        )
+
+        if (!include_index) {
+            return(version_data[, c("publication_date", "doi", "version", "id")])
+        }
+
+        return(version_data)
+    }
+
     publication_date <- as.Date(metadata$publication_date)
     version_rank <- numeric_version(strip_version_prefix(metadata$version))
     version <- as.character(version_rank)
-    id <- normalize_record_ids(res$hits$hits$id, metadata$doi)
 
     version_data <- tibble::tibble(
         publication_date = publication_date,
@@ -185,7 +211,7 @@ create_metadata <- function(res, include_index = FALSE) {
         version = version,
         id = id,
         raw_version = metadata$version,
-        index = seq_along(metadata$doi)
+        index = which(valid_version)
     )
     order_index <- order_version_rows(version_data$publication_date, version_rank)
     version_data <- version_data[order_index, ]
@@ -210,12 +236,12 @@ normalize_metadata <- function(metadata) {
     )
 }
 
-normalize_record_ids <- function(id, doi) {
+normalize_record_ids <- function(id, doi, valid_version) {
     if (is.null(id)) {
         return(sub("^10\\.5281/zenodo\\.", "", doi))
     }
 
-    as.character(id)
+    as.character(id)[valid_version]
 }
 
 order_version_rows <- function(publication_date, version_rank) {

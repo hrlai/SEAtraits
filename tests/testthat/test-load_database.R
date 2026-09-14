@@ -71,6 +71,31 @@ test_that("load_database errors for an unavailable version", {
     })
 })
 
+test_that("create_metadata ignores entries without versions", {
+    res <- list(
+        hits = list(
+            hits = list(
+                id = c("300", "200", "100"),
+                metadata = data.frame(
+                    publication_date = c("2024-03-01", "2024-02-01", "2024-01-01"),
+                    doi = c(
+                        "10.5281/zenodo.300",
+                        "10.5281/zenodo.200",
+                        "10.5281/zenodo.100"
+                    ),
+                    version = c(NA, "v1.0.0", ""),
+                    stringsAsFactors = FALSE
+                )
+            )
+        )
+    )
+
+    metadata <- SEAtraits:::create_metadata(res)
+
+    expect_identical(metadata$version, "1.0.0")
+    expect_identical(metadata$id, "200")
+})
+
 test_that("create_metadata standardizes metadata fields", {
     res <- list(
         hits = list(
