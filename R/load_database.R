@@ -40,7 +40,7 @@ load_database <- function(record_id,
     dir.create(path, recursive = TRUE, showWarnings = FALSE)
 
     res <- load_json(record_id = record_id, path = path, update = update)
-    metadata <- create_metadata(res)
+    metadata <- create_metadata(res, include_index = TRUE)
 
     if (!is.null(doi)) {
         if (!doi %in% metadata$doi) {
@@ -61,8 +61,10 @@ load_database <- function(record_id,
     }
 
     selected_record <- selected_record[1, , drop = FALSE]
-    version_index <- match(selected_record$doi[[1]], res$hits$hits$metadata$doi)
-    selected_files <- get_version_files(res$hits$hits$files, version_index)
+    selected_files <- get_version_files(
+        res$hits$hits$files,
+        selected_record$index[[1]]
+    )
     rds_index <- grep("\\.rds$", selected_files$key)
 
     if (length(rds_index) > 1) {
@@ -72,6 +74,13 @@ load_database <- function(record_id,
 
     if (!length(rds_index)) {
         stop("No .rds artifact found for the requested version.", call. = FALSE)
+    }
+
+    if (length(rds_index) > 1) {
+        stop(
+            "Multiple eligible .rds artifacts found for the requested version.",
+            call. = FALSE
+        )
     }
 
     rds_index <- rds_index[[1]]
@@ -130,6 +139,11 @@ get_version_latest <- function(record_id,
                                path = file.path("data", record_id),
                                update = TRUE) {
     versions <- get_versions(record_id = record_id, path = path, update = update)
+
+    if (!nrow(versions)) {
+        stop("No versions available for the requested record.", call. = FALSE)
+    }
+
     versions$version[[1]]
 }
 
@@ -148,7 +162,7 @@ load_json <- function(record_id, path, update) {
     jsonlite::fromJSON(file_json, simplifyVector = TRUE)
 }
 
-create_metadata <- function(res) {
+create_metadata <- function(res, include_index = FALSE) {
     metadata <- res$hits$hits$metadata
     publication_date <- as.Date(metadata$publication_date)
     version <- as.character(
@@ -160,10 +174,18 @@ create_metadata <- function(res) {
         publication_date = publication_date,
         doi = metadata$doi,
         version = version,
-        id = id
+        id = id,
+        index = seq_along(metadata$doi)
     )
+    version_data <- version_data[
+        order(version_data$publication_date, decreasing = TRUE),
+    ]
 
-    version_data[order(version_data$publication_date, decreasing = TRUE), ]
+    if (!include_index) {
+        return(version_data[, c("publication_date", "doi", "version", "id")])
+    }
+
+    version_data
 }
 
 download_database <- function(url, filename) {
@@ -201,16 +223,6 @@ download_database <- function(url, filename) {
 
 strip_version_prefix <- function(version) {
     sub("^v", "", version)
-}
-
-normalize_version <- function(resolved_version = NULL, raw_version = NULL) {
-    version <- resolved_version
-
-    if (is.null(version)) {
-        version <- raw_version
-    }
-
-    as.character(numeric_version(strip_version_prefix(version)))
 }
 
 validate_record_id <- function(record_id) {
