@@ -61,6 +61,11 @@ load_database <- function(record_id,
     selected_files <- get_version_files(res$hits$hits$files, version_index)
     rds_index <- grep("\\.rds$", selected_files$key)
 
+    if (length(rds_index) > 1) {
+        non_flattened <- !grepl("flattened", selected_files$key, fixed = TRUE)
+        rds_index <- rds_index[non_flattened[rds_index]]
+    }
+
     if (!length(rds_index)) {
         stop("No .rds artifact found for the requested version.", call. = FALSE)
     }
@@ -163,6 +168,7 @@ download_database <- function(url, filename) {
 
     dir.create(dirname(filename), recursive = TRUE, showWarnings = FALSE)
     tmp_file <- paste0(tempfile(), ".download")
+    on.exit(unlink(tmp_file), add = TRUE)
 
     message("Downloading database to '", filename, "'")
     result <- utils::download.file(
@@ -201,9 +207,32 @@ validate_record_id <- function(record_id) {
 }
 
 get_version_files <- function(files, version_index) {
-    if (is.data.frame(files) || !is.null(files$key)) {
-        return(files)
+    if (is.data.frame(files)) {
+        if (nrow(files) == 1L) {
+            return(files)
+        }
+
+        return(files[version_index, , drop = FALSE])
+    }
+
+    if (!is.null(files$key)) {
+        if (length(files$key) == 1L) {
+            return(files)
+        }
+
+        return(list(
+            key = files$key[[version_index]],
+            links = list(self = get_version_self_link(files$links, version_index))
+        ))
     }
 
     files[[version_index]]
+}
+
+get_version_self_link <- function(links, version_index) {
+    if (is.data.frame(links)) {
+        return(links$self[[version_index]])
+    }
+
+    links[[version_index]]$self
 }
