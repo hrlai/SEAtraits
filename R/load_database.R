@@ -167,7 +167,9 @@ load_json <- function(record_id, path, update) {
         jsonlite::write_json(res, tmp_json, auto_unbox = TRUE)
 
         if (!file.rename(tmp_json, file_json)) {
-            if (!file.copy(tmp_json, file_json, overwrite = TRUE)) {
+                copied <- file.copy(tmp_json, file_json, overwrite = TRUE)
+
+            if (!(length(copied) == 1L && isTRUE(copied))) {
                 stop("Could not update cached record metadata.", call. = FALSE)
             }
         }
@@ -262,12 +264,23 @@ normalize_record_ids <- function(id, doi, valid_version) {
 }
 
 order_version_rows <- function(publication_date, version_rank) {
-    ordered_dates <- sort(unique(publication_date), decreasing = TRUE)
-
-    unlist(lapply(ordered_dates, function(date) {
-        index <- which(publication_date == date)
+    known_dates <- sort(unique(publication_date[!is.na(publication_date)]),
+                        decreasing = TRUE)
+    ordered <- unlist(lapply(known_dates, function(date) {
+        index <- which(!is.na(publication_date) & publication_date == date)
         index[order(version_rank[index], decreasing = TRUE)]
     }), use.names = FALSE)
+
+    missing_dates <- which(is.na(publication_date))
+
+    if (length(missing_dates)) {
+        ordered <- c(
+            ordered,
+            missing_dates[order(version_rank[missing_dates], decreasing = TRUE)]
+        )
+    }
+
+    ordered
 }
 
 download_database <- function(url, filename) {
@@ -294,7 +307,9 @@ download_database <- function(url, filename) {
     }
 
     if (!file.rename(tmp_file, filename)) {
-        if (!file.copy(tmp_file, filename, overwrite = TRUE)) {
+        copied <- file.copy(tmp_file, filename, overwrite = TRUE)
+
+        if (!(length(copied) == 1L && isTRUE(copied))) {
             file.remove(tmp_file)
             stop("Could not move downloaded database into place.", call. = FALSE)
         }
