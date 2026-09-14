@@ -83,7 +83,7 @@ test_that("create_metadata ignores entries without versions", {
                         "10.5281/zenodo.200",
                         "10.5281/zenodo.100"
                     ),
-                    version = c(NA, "v1.0.0", ""),
+                    version = c(NA, "v1.0.0", "not-a-version"),
                     stringsAsFactors = FALSE
                 )
             )

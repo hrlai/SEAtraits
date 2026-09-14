@@ -33,8 +33,6 @@ load_database <- function(record_id,
         )
     }
 
-    version_input <- version
-
     if (!is.null(version)) {
         version <- strip_version_prefix(version)
     }
@@ -59,11 +57,7 @@ load_database <- function(record_id,
     if (!is.null(doi)) {
         selected_record <- metadata[metadata$doi == doi, , drop = FALSE]
     } else {
-        selected_record <- metadata[metadata$raw_version == version_input, , drop = FALSE]
-
-        if (!nrow(selected_record)) {
-            selected_record <- metadata[metadata$version == version, , drop = FALSE]
-        }
+        selected_record <- metadata[metadata$version == version, , drop = FALSE]
     }
 
     selected_record <- selected_record[1, , drop = FALSE]
@@ -91,6 +85,12 @@ load_database <- function(record_id,
 
     rds_index <- rds_index[[1]]
     url <- selected_files$links$self[[rds_index]]
+
+    if (is.null(url) || !nzchar(url)) {
+        stop("The selected .rds artifact does not have a usable download link.",
+             call. = FALSE)
+    }
+
     filename <- file.path(path, selected_files$key[[rds_index]])
 
     if (!file.exists(filename)) {
@@ -180,7 +180,24 @@ load_json <- function(record_id, path, update) {
 
 create_metadata <- function(res, include_index = FALSE) {
     metadata <- normalize_metadata(res$hits$hits$metadata)
-    valid_version <- !is.na(metadata$version) & nzchar(metadata$version)
+    stripped_version <- strip_version_prefix(metadata$version)
+    parseable_version <- vapply(
+        stripped_version,
+        function(value) {
+            if (is.na(value) || !nzchar(value)) {
+                return(FALSE)
+            }
+
+            tryCatch({
+                numeric_version(value)
+                TRUE
+            }, error = function(...) {
+                FALSE
+            })
+        },
+        logical(1)
+    )
+    valid_version <- parseable_version
     metadata <- metadata[valid_version, , drop = FALSE]
     id <- normalize_record_ids(res$hits$hits$id, metadata$doi, valid_version)
 
@@ -202,7 +219,7 @@ create_metadata <- function(res, include_index = FALSE) {
     }
 
     publication_date <- as.Date(metadata$publication_date)
-    version_rank <- numeric_version(strip_version_prefix(metadata$version))
+    version_rank <- numeric_version(stripped_version[valid_version])
     version <- as.character(version_rank)
 
     version_data <- tibble::tibble(
@@ -291,8 +308,9 @@ strip_version_prefix <- function(version) {
 }
 
 validate_record_id <- function(record_id) {
-    if (missing(record_id) || is.null(record_id) || !nzchar(as.character(record_id))) {
-        stop("`record_id` must be supplied.", call. = FALSE)
+    if (missing(record_id) || is.null(record_id) || length(record_id) != 1L ||
+        is.na(record_id) || !nzchar(as.character(record_id))) {
+        stop("`record_id` must be a single non-empty value.", call. = FALSE)
     }
 
     as.character(record_id)
@@ -300,11 +318,7 @@ validate_record_id <- function(record_id) {
 
 get_version_files <- function(files, version_index) {
     if (is.data.frame(files)) {
-        if (nrow(files) == 1L) {
-            return(files)
-        }
-
-        return(files[version_index, , drop = FALSE])
+        return(files)
     }
 
     if (!is.null(files$key)) {
