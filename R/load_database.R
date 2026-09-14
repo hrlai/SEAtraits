@@ -55,8 +55,8 @@ load_database <- function(record_id,
     }
 
     version_index <- match(
-        version,
-        strip_version_prefix(res$hits$hits$metadata$version)
+        normalize_version(resolved_version = version),
+        normalize_version(raw_version = res$hits$hits$metadata$version)
     )
     selected_files <- get_version_files(res$hits$hits$files, version_index)
     rds_index <- grep("\\.rds$", selected_files$key)
@@ -80,7 +80,7 @@ load_database <- function(record_id,
 
     message("Loading data from '", filename, "'")
     data <- readRDS(filename)
-    class(data) <- "traits.build"
+    class(data) <- unique(c("traits.build", class(data)))
 
     data
 }
@@ -138,6 +138,7 @@ load_json <- function(record_id, path, update) {
             simplifyVector = TRUE
         )
         jsonlite::write_json(res, file_json, auto_unbox = TRUE)
+        return(res)
     }
 
     jsonlite::fromJSON(file_json, simplifyVector = TRUE)
@@ -196,6 +197,16 @@ download_database <- function(url, filename) {
 
 strip_version_prefix <- function(version) {
     sub("^v", "", version)
+}
+
+normalize_version <- function(resolved_version = NULL, raw_version = NULL) {
+    version <- resolved_version
+
+    if (is.null(version)) {
+        version <- raw_version
+    }
+
+    as.character(numeric_version(strip_version_prefix(version)))
 }
 
 validate_record_id <- function(record_id) {

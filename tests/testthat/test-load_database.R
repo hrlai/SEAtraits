@@ -124,6 +124,25 @@ test_that("get_version_files selects the requested entry from vectorized lists",
     )
 })
 
+
+test_that("get_version_files handles vectorized link lists", {
+    files <- list(
+        key = c("traits-build-0.9.0.rds", "traits-build-1.0.0.rds"),
+        links = list(
+            list(self = "https://example.org/traits-build-0.9.0.rds"),
+            list(self = "https://example.org/traits-build-1.0.0.rds")
+        )
+    )
+
+    selected <- SEAtraits:::get_version_files(files, 2)
+
+    expect_identical(selected$key, "traits-build-1.0.0.rds")
+    expect_identical(
+        selected$links$self,
+        "https://example.org/traits-build-1.0.0.rds"
+    )
+})
+
 test_that("download_database copies into place when rename fails", {
     path <- tempfile("download-")
     dir.create(path)
