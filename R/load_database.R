@@ -154,6 +154,7 @@ get_version_latest <- function(record_id,
 }
 
 load_json <- function(record_id, path, update) {
+    dir.create(path, recursive = TRUE, showWarnings = FALSE)
     file_json <- file.path(path, paste0("record-", record_id, ".json"))
 
     if (!file.exists(file_json) || isTRUE(update)) {
@@ -187,10 +188,11 @@ create_metadata <- function(res, include_index = FALSE) {
         raw_version = metadata$version,
         index = seq_along(metadata$doi)
     )
-    version_data <- version_data[order(version_rank, decreasing = TRUE), ]
-    version_data <- version_data[
-        order(version_data$publication_date, decreasing = TRUE, method = "radix"),
-    ]
+    order_index <- order(
+        -as.numeric(version_data$publication_date),
+        -xtfrm(version_rank)
+    )
+    version_data <- version_data[order_index, ]
 
     if (!include_index) {
         return(version_data[, c("publication_date", "doi", "version", "id")])

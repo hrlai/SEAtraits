@@ -1,19 +1,27 @@
 write_versions_cache <- function(path, record_id, records) {
     payload <- list(
         hits = list(
-            hits = lapply(records, function(record) {
-                list(
-                    metadata = list(
-                        publication_date = record$publication_date,
-                        doi = record$doi,
-                        version = record$version
-                    ),
-                    files = list(
+            hits = lapply(seq_along(records), function(index) {
+                record <- records[[index]]
+                files <- record$files
+
+                if (is.null(files)) {
+                    files <- list(
                         list(
                             key = record$key,
                             links = list(self = record$self)
                         )
                     )
+                }
+
+                list(
+                    id = record$id %||% as.character(index),
+                    metadata = list(
+                        publication_date = record$publication_date,
+                        doi = record$doi,
+                        version = record$version
+                    ),
+                    files = files
                 )
             })
         )
@@ -26,9 +34,40 @@ write_versions_cache <- function(path, record_id, records) {
     )
 }
 
+`%||%` <- function(x, y) {
+    if (is.null(x)) {
+        y
+    } else {
+        x
+    }
+}
+
 test_that("load_database requires doi or version", {
     expect_snapshot(error = TRUE, {
         load_database(record_id = "1234567")
+    })
+})
+
+test_that("load_database errors for an unavailable version", {
+    path <- tempfile("versions-")
+    dir.create(path)
+
+    write_versions_cache(
+        path = path,
+        record_id = "1234567",
+        records = list(
+            list(
+                publication_date = "2024-02-01",
+                doi = "10.5281/zenodo.200",
+                version = "1.0.0",
+                key = "traits-build-1.0.0.rds",
+                self = "https://example.org/traits-build-1.0.0.rds"
+            )
+        )
+    )
+
+    expect_snapshot(error = TRUE, {
+        load_database(record_id = "1234567", version = "9.9.9", path = path)
     })
 })
 
@@ -36,6 +75,7 @@ test_that("create_metadata standardizes metadata fields", {
     res <- list(
         hits = list(
             hits = list(
+                id = c("200", "100"),
                 metadata = data.frame(
                     publication_date = c("2024-02-01", "2024-01-01"),
                     doi = c("10.5281/zenodo.200", "10.5281/zenodo.100"),
@@ -155,7 +195,6 @@ test_that("get_version_files selects the requested entry from vectorized lists",
     )
 })
 
-
 test_that("get_version_files handles vectorized link lists", {
     files <- list(
         key = c("traits-build-0.9.0.rds", "traits-build-1.0.0.rds"),
@@ -215,6 +254,77 @@ test_that("load_database uses the selected metadata row for duplicates", {
 
     expect_identical(database$source, "newer")
     expect_identical(class(database), c("traits.build", "existing"))
+})
+
+test_that("load_database prefers non-flattened rds artifacts", {
+    path <- tempfile("database-")
+    dir.create(path)
+    record_id <- "1234567"
+
+    canonical <- structure(list(source = "canonical"), class = "existing")
+    saveRDS(canonical, file.path(path, "traits-build.rds"))
+
+    write_versions_cache(
+        path = path,
+        record_id = record_id,
+        records = list(
+            list(
+                publication_date = "2024-02-01",
+                doi = "10.5281/zenodo.200",
+                version = "1.0.0",
+                files = list(
+                    list(
+                        key = "traits-build-flattened.rds",
+                        links = list(self = "https://example.org/traits-build-flattened.rds")
+                    ),
+                    list(
+                        key = "traits-build.rds",
+                        links = list(self = "https://example.org/traits-build.rds")
+                    )
+                )
+            )
+        )
+    )
+
+    database <- load_database(
+        record_id = record_id,
+        version = "1.0.0",
+        path = path,
+        update = FALSE
+    )
+
+    expect_identical(database$source, "canonical")
+})
+
+test_that("load_database errors when multiple eligible rds artifacts remain", {
+    path <- tempfile("database-")
+    dir.create(path)
+
+    write_versions_cache(
+        path = path,
+        record_id = "1234567",
+        records = list(
+            list(
+                publication_date = "2024-02-01",
+                doi = "10.5281/zenodo.200",
+                version = "1.0.0",
+                files = list(
+                    list(
+                        key = "traits-build-a.rds",
+                        links = list(self = "https://example.org/traits-build-a.rds")
+                    ),
+                    list(
+                        key = "traits-build-b.rds",
+                        links = list(self = "https://example.org/traits-build-b.rds")
+                    )
+                )
+            )
+        )
+    )
+
+    expect_snapshot(error = TRUE, {
+        load_database(record_id = "1234567", version = "1.0.0", path = path)
+    })
 })
 
 test_that("download_database copies into place when rename fails", {
