@@ -143,6 +143,49 @@ test_that("get_version_files handles vectorized link lists", {
     )
 })
 
+test_that("load_database uses the selected metadata row for duplicates", {
+    path <- tempfile("database-")
+    dir.create(path)
+    record_id <- "1234567"
+
+    older <- structure(list(source = "older"), class = "existing")
+    newer <- structure(list(source = "newer"), class = "existing")
+
+    saveRDS(older, file.path(path, "traits-build-older.rds"))
+    saveRDS(newer, file.path(path, "traits-build-newer.rds"))
+
+    write_versions_cache(
+        path = path,
+        record_id = record_id,
+        records = list(
+            list(
+                publication_date = "2024-01-01",
+                doi = "10.5281/zenodo.100",
+                version = "v1.0",
+                key = "traits-build-older.rds",
+                self = "https://example.org/traits-build-older.rds"
+            ),
+            list(
+                publication_date = "2024-02-01",
+                doi = "10.5281/zenodo.200",
+                version = "1.0.0",
+                key = "traits-build-newer.rds",
+                self = "https://example.org/traits-build-newer.rds"
+            )
+        )
+    )
+
+    database <- load_database(
+        record_id = record_id,
+        version = "1.0.0",
+        path = path,
+        update = FALSE
+    )
+
+    expect_identical(database$source, "newer")
+    expect_identical(class(database), c("traits.build", "existing"))
+})
+
 test_that("download_database copies into place when rename fails", {
     path <- tempfile("download-")
     dir.create(path)

@@ -54,10 +54,14 @@ load_database <- function(record_id,
         stop("Requested version or DOI is not available.", call. = FALSE)
     }
 
-    version_index <- match(
-        normalize_version(resolved_version = version),
-        normalize_version(raw_version = res$hits$hits$metadata$version)
-    )
+    if (!is.null(doi)) {
+        selected_record <- metadata[metadata$doi == doi, , drop = FALSE]
+    } else {
+        selected_record <- metadata[metadata$version == version, , drop = FALSE]
+    }
+
+    selected_record <- selected_record[1, , drop = FALSE]
+    version_index <- match(selected_record$doi[[1]], res$hits$hits$metadata$doi)
     selected_files <- get_version_files(res$hits$hits$files, version_index)
     rds_index <- grep("\\.rds$", selected_files$key)
 
@@ -163,7 +167,7 @@ create_metadata <- function(res) {
 }
 
 download_database <- function(url, filename) {
-    timeout <- getOption("timeout")
+    timeout <- getOption("timeout", 60)
     options(timeout = max(300, timeout))
     on.exit(options(timeout = timeout), add = TRUE)
 
