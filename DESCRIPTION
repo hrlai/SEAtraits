@@ -1,0 +1,25 @@
+Package: SEAtraits
+Title: Load Zenodo-Hosted traits.build Databases
+Version: 0.0.0.9000
+Author: Hao Ran Lai [aut, cre]
+Maintainer: Hao Ran Lai <hrlai.ecology@gmail.com>
+Authors@R: person(given = "Hao Ran", family = "Lai",
+    email = "hrlai.ecology@gmail.com",
+    role = c("aut", "cre"))
+Description: Query Zenodo record versions, cache the versions metadata,
+    download a selected RDS artifact, and load it as a "traits.build"
+    object.
+License: MIT + file LICENSE
+URL: https://github.com/hrlai/SEAtraits
+BugReports: https://github.com/hrlai/SEAtraits/issues
+Depends:
+    R (>= 4.0.0)
+Imports:
+    jsonlite,
+    tibble
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
